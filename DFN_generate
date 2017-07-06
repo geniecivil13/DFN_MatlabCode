@@ -1,0 +1,346 @@
+clc
+clear all
+
+%% Tesis de Maestría Rubén Londoño
+%  Octubre de 2014
+%  Generación de redes de fracturas discretas (DFN)
+%  Código creado por Rubén Darío Londoño 
+%  Universidad Nacional - Sede Medellín
+
+%  Este código genera N modelos estocásticos de fracturas discretas
+%  cuyas propiedades geométricas están descritas por funciones de
+%  distribución de probabilidad conocidas; la salida es una matriz en tres
+%  dimensiones para cada familia estructural identificada, 
+%  con las propiedades generadas para cada fractura, y la
+%  tercera dimensión corresponde al modelo en cuestión.
+
+%% 1. Cargar los datos básicos de modelación (Brecha de intrusión)
+
+% Generales:
+lado = 32;                          % Espacio de generación
+alpha = 0;                          % Ángulo del plano de generación
+N = 100;                            % Número de modelos estocásticos a generar
+
+% Número de fracturas:
+Nf1 = 1369;                         % Número de fracturas a generar familia 1 (a partir de la frecuencia areal estimada)
+Nf2 = 1298;                         % Número de fracturas a generar familia 2 (a partir de la frecuencia areal estimada)  
+Nf3 = 1192;                         % Número de fracturas a generar familia 3 (a partir de la frecuencia areal estimada)
+
+% Constantes de Fisher:
+k1 = 7.08;                          % Constante de Fisher familia 1 (resultante del análisis estructural)
+k2 = 5.19;                          % Constante de Fisher familia 2 (resultante del análisis estructural)
+k3 = 6.61;                          % Constante de Fisher familia 3 (resultante del análisis estructural)
+
+% Vectores unitarios paralelos:
+U01 = [0.0512; -0.4955; 0.8671];    % Vector en dirección del plano medio de la familia 1
+U02 = [-0.0183; 0.7748; 0.6320];    % Vector en dirección del plano medio de la familia 2
+U03 = [0.1153; -0.0275; 0.9929];    % Vector en dirección del plano medio de la familia 3
+
+% Vectores unitarios normales:
+UN1 = [-0.0891; -0.8625; 0.4981];   % Vector normal del plano medio de la familia 1
+UN2 = [0.0149; -0.6318; 0.7750];    % Vector normal del plano medio de la familia 2
+UN3 = [-0.9659; 0.2301; 0.1186];    % Vector normal del plano medio de la familia 3
+
+% Parámetros abertura:
+AB = [0.43261; -2.6264];            % Parámetros de ajuste de la abertura (log-normal 2)
+
+% Parámetros persistencia:
+load LBuri_F1                          % Parámetros de ajuste de la persistencia familia 1 (log-normal 3)
+load LBuri_F2                          % Parámetros de ajuste de la persistencia familia 2 (log-normal 3)
+load LBuri_F3                          % Parámetros de ajuste de la persistencia familia 3 (log-normal 3)
+PE1 = LBuri_F1;                        % Vector de persistencia familia 1
+PE2 = LBuri_F2;                        % Vector de persistencia familia 2
+PE3 = LBuri_F3;                        % Vector de persistencia familia 3
+
+% Definición ventana de modelación
+xg1 = 0; xg2 = lado;
+yg1 = 0; yg2 = lado;
+Buri_F1 = zeros (Nf1,15,N);
+Buri_F2 = zeros (Nf2,15,N);
+Buri_F3 = zeros (Nf3,15,N);
+
+%% 1. Generación
+
+for n=1:N
+    
+l1 = 1; 
+l2 = 1; 
+l3 = 1;                         % Contador de todas las fracturas
+    
+    for i=1:Nf1
+           xc = xg1 + ((xg2 - xg1)*rand(1,1));  % Coordenada X del centro
+           yc = yg1 + ((yg2 - yg1)*rand(1,1));  % Coordenada Y del centro
+           
+           F = acos((log(1-rand(1,1))/k1)+1);    % Ángulo de desviación de la normal
+           
+           R011 = cos(F)+((U01(1,1))^2)*(1-cos(F));
+           R012 = U01(1,1)*U01(2,1)*(1-cos(F))-(U01(3,1)*sin(F));
+           R013 = U01(1,1)*U01(3,1)*(1-cos(F))+(U01(2,1)*sin(F));
+           
+           R021 = U01(2,1)*U01(1,1)*(1-cos(F))+(U01(3,1)*sin(F));
+           R022 = cos(F)+((U01(2,1))^2)*(1-cos(F));
+           R023 = U01(2,1)*U01(3,1)*(1-cos(F))-(U01(1,1)*sin(F));
+           
+           R031 = U01(3,1)*U01(1,1)*(1-cos(F))-(U01(2,1)*sin(F));
+           R032 = U01(2,1)*U01(3,1)*(1-cos(F))+(U01(2,1)*sin(F));
+           R033 = cos(F)+((U01(3,1))^2)*(1-cos(F));
+           
+           R0 = [R011 R012 R013; R021 R022 R023; R031 R032 R033];   % Matriz de rotación alrededor del plano un ángulo F
+           G0 = R0*UN1;                                             % Vector rotado un ángulo F alrededor del plano
+           
+           T = 2*pi*rand(1,1);                                      % Ángulo de rotación alrededor de la normal
+           
+           RN11 = cos(T)+((UN1(1,1))^2)*(1-cos(T));
+           RN12 = UN1(1,1)*UN1(2,1)*(1-cos(T))-(UN1(3,1)*sin(T));
+           RN13 = UN1(1,1)*UN1(3,1)*(1-cos(T))+(UN1(2,1)*sin(T));
+           
+           RN21 = UN1(2,1)*UN1(1,1)*(1-cos(T))+(UN1(3,1)*sin(T));
+           RN22 = cos(T)+((UN1(2,1))^2)*(1-cos(T));
+           RN23 = UN1(2,1)*UN1(3,1)*(1-cos(T))-(UN1(1,1)*sin(T));
+           
+           RN31 = UN1(3,1)*UN1(1,1)*(1-cos(T))-(UN1(2,1)*sin(T));
+           RN32 = UN1(2,1)*UN1(3,1)*(1-cos(T))+(UN1(2,1)*sin(T));
+           RN33 = cos(T)+((UN1(3,1))^2)*(1-cos(T));
+           
+           RN = [RN11 RN12 RN13; RN21 RN22 RN23; RN31 RN32 RN33];   % Matriz de rotación alrededor de la normal un ángulo T
+           GN = RN*G0;                                              % Vector rotado alrededor de la normal
+           
+           if GN(3,1)<0
+               GN=GN.*(-1);
+           end
+                      
+           if GN(1,1) < 0
+               Q = pi;
+           elseif GN(2,1) < 0
+               Q = 2*pi;
+           else
+               Q = 0;
+           end
+                              
+           A1 = atan(GN(2,1)/GN(1,1))+ Q;
+           A2 = atan (GN(3,1)/(((GN(1,1)^2)+(GN(2,1)^2))^0.5));
+           
+           if A1 < pi
+               dip_dir = A1+pi;
+           else
+               dip_dir= A1-pi;
+           end
+           
+           dip = (pi/2)-A2;
+
+           buz = atan(tan(dip)*cos(abs(dip_dir - alpha)));
+           
+           per = abs(PE1(l1,1));
+           l1 = l1+1;
+           
+           A = (per*1) * sin(buz);
+           B = (per*1) * cos(buz);
+           
+           x1 = xc - B;
+           y1 = yc - A;
+           
+           x2 = xc + B;
+           y2 = yc + A;
+           
+           m = (y2 - y1)/(x2 - x1);
+           b = y1 - (m*x1);
+           
+           eh = exp(randn(1,1)*AB(1,1)+AB(2,1));
+           
+           dip = fix(dip*180/pi);
+           dip_dir = fix(dip_dir*180/pi);
+           buz = fix(buz*180/pi);
+           
+           FRACTURA = [i xc yc F dip_dir dip buz per x1 y1 x2 y2 m b eh];
+           Buri_F1(i,1:15,n)= FRACTURA;
+           
+           clear FRACTURA xc yc F dip_dir dip buz per x1 y1 x2 y2 m b eh
+           clear R011 R012 R013 R021 R022 R023 R031 R032 R033 R0 G0 T A1 A2
+           clear RN11 RN12 RN13 RN21 RN22 RN23 RN31 RN32 RN33 RN GN Q A B      
+    end
+     
+    for i=1:Nf2
+           xc = xg1 + ((xg2 - xg1)*rand(1,1));  % Coordenada X del centro
+           yc = yg1 + ((yg2 - yg1)*rand(1,1));  % Coordenada Y del centro
+           
+           F = acos((log(1-rand(1,1))/k2)+1);    % Ángulo de desviación de la normal
+           
+           R011 = cos(F)+((U02(1,1))^2)*(1-cos(F));
+           R012 = U02(1,1)*U02(2,1)*(1-cos(F))-(U02(3,1)*sin(F));
+           R013 = U02(1,1)*U02(3,1)*(1-cos(F))+(U02(2,1)*sin(F));
+           
+           R021 = U02(2,1)*U02(1,1)*(1-cos(F))+(U02(3,1)*sin(F));
+           R022 = cos(F)+((U02(2,1))^2)*(1-cos(F));
+           R023 = U02(2,1)*U02(3,1)*(1-cos(F))-(U02(1,1)*sin(F));
+           
+           R031 = U02(3,1)*U02(1,1)*(1-cos(F))-(U02(2,1)*sin(F));
+           R032 = U02(2,1)*U02(3,1)*(1-cos(F))+(U02(2,1)*sin(F));
+           R033 = cos(F)+((U02(3,1))^2)*(1-cos(F));
+           
+           R0 = [R011 R012 R013; R021 R022 R023; R031 R032 R033];   % Matriz de rotación alrededor del plano un ángulo F
+           G0 = R0*UN2;                                             % Vector rotado un ángulo F alrededor del plano
+           
+           T = 2*pi*rand(1,1);                                      % Ángulo de rotación alrededor de la normal
+           
+           RN11 = cos(T)+((UN2(1,1))^2)*(1-cos(T));
+           RN12 = UN2(1,1)*UN2(2,1)*(1-cos(T))-(UN2(3,1)*sin(T));
+           RN13 = UN2(1,1)*UN2(3,1)*(1-cos(T))+(UN2(2,1)*sin(T));
+           
+           RN21 = UN2(2,1)*UN2(1,1)*(1-cos(T))+(UN2(3,1)*sin(T));
+           RN22 = cos(T)+((UN2(2,1))^2)*(1-cos(T));
+           RN23 = UN2(2,1)*UN2(3,1)*(1-cos(T))-(UN2(1,1)*sin(T));
+           
+           RN31 = UN2(3,1)*UN2(1,1)*(1-cos(T))-(UN2(2,1)*sin(T));
+           RN32 = UN2(2,1)*UN2(3,1)*(1-cos(T))+(UN2(2,1)*sin(T));
+           RN33 = cos(T)+((UN2(3,1))^2)*(1-cos(T));
+           
+           RN = [RN11 RN12 RN13; RN21 RN22 RN23; RN31 RN32 RN33];   % Matriz de rotación alrededor de la normal un ángulo T
+           GN = RN*G0;                                              % Vector rotado alrededor de la normal
+           
+           if GN(3,1)<0
+               GN=GN.*(-1);
+           end
+                      
+           if GN(1,1) < 0
+               Q = pi;
+           elseif GN(2,1) < 0
+               Q = 2*pi;
+           else
+               Q = 0;
+           end
+                              
+           A1 = atan(GN(2,1)/GN(1,1))+ Q;
+           A2 = atan (GN(3,1)/(((GN(1,1)^2)+(GN(2,1)^2))^0.5));
+           
+           if A1 < pi
+               dip_dir = A1+pi;
+           else
+               dip_dir= A1-pi;
+           end
+           
+           dip = (pi/2)-A2;
+
+           buz = atan(tan(dip)*cos(abs(dip_dir - alpha)));
+           
+           per = abs(PE2(l2,1));
+           l2 = l2+1;
+           
+           A = (per*1) * sin(buz);
+           B = (per*1) * cos(buz);
+           
+           x1 = xc - B;
+           y1 = yc - A;
+           
+           x2 = xc + B;
+           y2 = yc + A;
+           
+           m = (y2 - y1)/(x2 - x1);
+           b = y1 - (m*x1);
+           
+           eh = exp(randn(1,1)*AB(1,1)+AB(2,1));
+           
+           dip = fix(dip*180/pi);
+           dip_dir = fix(dip_dir*180/pi);
+           buz = fix(buz*180/pi);
+           
+           FRACTURA = [i xc yc F dip_dir dip buz per x1 y1 x2 y2 m b eh];
+           Buri_F2(i,1:15,n)= FRACTURA;
+           
+           clear FRACTURA xc yc F dip_dir dip buz per x1 y1 x2 y2 m b eh
+           clear R011 R012 R013 R021 R022 R023 R031 R032 R033 R0 G0 T A1 A2
+           clear RN11 RN12 RN13 RN21 RN22 RN23 RN31 RN32 RN33 RN GN Q A B      
+    end
+     
+    for i=1:Nf3
+           xc = xg1 + ((xg2 - xg1)*rand(1,1));  % Coordenada X del centro
+           yc = yg1 + ((yg2 - yg1)*rand(1,1));  % Coordenada Y del centro
+           
+           F = acos((log(1-rand(1,1))/k3)+1);    % Ángulo de desviación de la normal
+           
+           R011 = cos(F)+((U03(1,1))^2)*(1-cos(F));
+           R012 = U03(1,1)*U03(2,1)*(1-cos(F))-(U03(3,1)*sin(F));
+           R013 = U03(1,1)*U03(3,1)*(1-cos(F))+(U03(2,1)*sin(F));
+           
+           R021 = U03(2,1)*U03(1,1)*(1-cos(F))+(U03(3,1)*sin(F));
+           R022 = cos(F)+((U03(2,1))^2)*(1-cos(F));
+           R023 = U03(2,1)*U03(3,1)*(1-cos(F))-(U03(1,1)*sin(F));
+           
+           R031 = U03(3,1)*U03(1,1)*(1-cos(F))-(U03(2,1)*sin(F));
+           R032 = U03(2,1)*U03(3,1)*(1-cos(F))+(U03(2,1)*sin(F));
+           R033 = cos(F)+((U03(3,1))^2)*(1-cos(F));
+           
+           R0 = [R011 R012 R013; R021 R022 R023; R031 R032 R033];   % Matriz de rotación alrededor del plano un ángulo F
+           G0 = R0*UN3;                                             % Vector rotado un ángulo F alrededor del plano
+           
+           T = 2*pi*rand(1,1);                                      % Ángulo de rotación alrededor de la normal
+           
+           RN11 = cos(T)+((UN3(1,1))^2)*(1-cos(T));
+           RN12 = UN3(1,1)*UN3(2,1)*(1-cos(T))-(UN3(3,1)*sin(T));
+           RN13 = UN3(1,1)*UN3(3,1)*(1-cos(T))+(UN3(2,1)*sin(T));
+           
+           RN21 = UN3(2,1)*UN3(1,1)*(1-cos(T))+(UN3(3,1)*sin(T));
+           RN22 = cos(T)+((UN3(2,1))^2)*(1-cos(T));
+           RN23 = UN3(2,1)*UN3(3,1)*(1-cos(T))-(UN3(1,1)*sin(T));
+           
+           RN31 = UN3(3,1)*UN3(1,1)*(1-cos(T))-(UN3(2,1)*sin(T));
+           RN32 = UN3(2,1)*UN3(3,1)*(1-cos(T))+(UN3(2,1)*sin(T));
+           RN33 = cos(T)+((UN3(3,1))^2)*(1-cos(T));
+           
+           RN = [RN11 RN12 RN13; RN21 RN22 RN23; RN31 RN32 RN33];   % Matriz de rotación alrededor de la normal un ángulo T
+           GN = RN*G0;                                              % Vector rotado alrededor de la normal
+           
+           if GN(3,1)<0
+               GN=GN.*(-1);
+           end
+                      
+           if GN(1,1) < 0
+               Q = pi;
+           elseif GN(2,1) < 0
+               Q = 2*pi;
+           else
+               Q = 0;
+           end
+                              
+           A1 = atan(GN(2,1)/GN(1,1))+ Q;
+           A2 = atan (GN(3,1)/(((GN(1,1)^2)+(GN(2,1)^2))^0.5));
+           
+           if A1 < pi
+               dip_dir = A1+pi;
+           else
+               dip_dir= A1-pi;
+           end
+           
+           dip = (pi/2)-A2;
+
+           buz = atan(tan(dip)*cos(abs(dip_dir - alpha)));
+           
+           per = abs(PE3(l3,1));
+           l3 = l3+1;
+           
+           A = (per*1) * sin(buz);
+           B = (per*1) * cos(buz);
+           
+           x1 = xc - B;
+           y1 = yc - A;
+           
+           x2 = xc + B;
+           y2 = yc + A;
+           
+           m = (y2 - y1)/(x2 - x1);
+           b = y1 - (m*x1);
+           
+           eh = exp(randn(1,1)*AB(1,1)+AB(2,1));
+           
+           dip = fix(dip*180/pi);
+           dip_dir = fix(dip_dir*180/pi);
+           buz = fix(buz*180/pi);
+           
+           FRACTURA = [i xc yc F dip_dir dip buz per x1 y1 x2 y2 m b eh];
+           Buri_F3(i,1:15,n)= FRACTURA;
+           
+           clear FRACTURA xc yc F dip_dir dip buz per x1 y1 x2 y2 m b eh
+           clear R011 R012 R013 R021 R022 R023 R031 R032 R033 R0 G0 T A1 A2
+           clear RN11 RN12 RN13 RN21 RN22 RN23 RN31 RN32 RN33 RN GN Q A B      
+    end
+    
+end
