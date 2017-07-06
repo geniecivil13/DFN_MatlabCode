@@ -1,5 +1,4 @@
-clc
-clear all
+function [Buri_F1, Buri_F2, Buri_F3] = DFN_buritica_ver1
 
 %% Tesis de Maestría Rubén Londoño
 %  Octubre de 2014
@@ -343,4 +342,5 @@ l3 = 1;                         % Contador de todas las fracturas
            clear RN11 RN12 RN13 RN21 RN22 RN23 RN31 RN32 RN33 RN GN Q A B      
     end
     
+end
 end
