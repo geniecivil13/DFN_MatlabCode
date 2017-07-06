@@ -1,0 +1,138 @@
+clc
+clear all
+
+%% Tesis de Maestría Rubén Londoño
+
+%  Código para la definición de tramos de fracturas
+%  Código creado por Rubén Darío Londoño 
+%  Universidad Nacional - Sede Medellín
+
+%% 1. Cargar los datos entrada
+
+% Entrada  F(nf,7)
+% Matriz que contiene la información sobre
+% cada un de las nf fracturas generadas
+% de la forma:
+% [pendiente intercepto xmin xmax ymin ymax abertura]
+
+load Buri_F1
+load Buri_F2
+load Buri_F3
+F0 = [Buri_F1;Buri_F2;Buri_F3];
+
+for dfn=1:10
+F = [F0(:,13,dfn),F0(:,14,dfn),F0(:,9,dfn),F0(:,11,dfn),F0(:,10,dfn),F0(:,12,dfn),F0(:,15,dfn)];
+L = 30;                         	% Ventana de análisis
+u = 0.000001;						% Viscosidad del agua
+g = 9.81;							% Gravedad
+nf = size(F,1);
+
+%% 2. Inicializo contadores
+
+m = 1;                                  % Contador de tramos de flujo
+ni = 1;                                 % Contador de nodos internos no repetidos
+ne = 1;                                 % Contador de nodos externos no repetidos
+L1 = 16 - (L/2);                        % Límite inferior del dominio de análisis
+L2 = 16 + (L/2);                        % Límite superior del dominio de análisis
+%% 3. Selecciono una a una las fracturas generadas
+
+for i = 1:nf                                        % Se selecciona cada fractura
+	p = 1;                                          % Contador de nodos de cada fractura (se inicializa en cada iteración)
+       
+	for j = 1:nf                                    % Selecciono cada fractura de prueba (incluyendo las anteriores)
+		if F(i,1) ~= F(j,1)                         % Descarto las misma fractura y las fracturas paralelas
+			x = (F(j,2)-F(i,2))/(F(i,1)-F(j,1));	% Calculo la coordenada x de la intersección
+			y = F(i,1)*x+F(i,2);                    % Calculo la coordenada y de la intersección
+			xmin = max([F(i,3), F(j,3), L1]);       % Calculo la coordenada x mínima, teniendo en cuenta la frontera y la extensión de las fracturas
+			xmax = min([F(i,4), F(j,4), L2]);       % Calculo la coordenada x máxima, teniendo en cuenta la frontera y la extensión de las fracturas
+			if x >= xmin && x <= xmax && y <= L2 && y>= L1  % Selecciono los que quedan dentro del dominio de las fracturas y la frontera
+				NN(p,1) = x; NN(p,2) = y;           % El vector NN va a guardar todos los nodos de la iteración, acá los internos
+				p = p+1;                            % Actualizo el contador de nodos de la fractura i
+				if j>i
+					NI(ni,1) = x; NI(ni,2) = y;     % Este es el vector de nodos internos de todo el sistema
+					ni = ni+1;                      % Actualizo el contador de nodos internos
+				end
+
+			end
+		end
+	end
+
+	y1 = (F(i,1)*(L1))+F(i,2);                      % Intercepto de la fractura con la frontera izquierda
+	y2 = (F(i,1)*(L2))+F(i,2);                      % Intercepto de la fractura con la frontera derecha
+	x1 = ((L1)-F(i,2))/F(i,1);                      % Intercepto de la fractura con la frontera inferior
+	x2 = ((L2)-F(i,2))/F(i,1);                  	% Intercepto de la fractura con la frontera superior
+
+    ymax = max([F(i,5),F(i,6)]);                    % Elijo la coordenada y superior
+    ymin = min([F(i,5),F(i,6)]);                    % Elijo la coordenada y inferior
+    
+	if ymin <= L1                                   % Verifico si la fractura se extiende por fuera de la frontera inferior
+        if x1 <=(L2) && x1 >= (L1)
+		NN(p,1) = x1; NN(p,2) = L1;                 % El vector NN va a guardar todos los nodos de la iteración, acá los externos
+		NE(ne,1) = x1; NE(ne,2)= L1;                % El vector NE va a guardar todos los nodos externos del sistema
+		p = p+1; ne = ne+1;                         % Actualizo los contadores: p nodos en la fractura i y ne nodos externos en todo el sistema
+        end
+	end
+
+	if ymax >= L2                                   % Verifico si la fractura se extiende por fuera de la frontera superior
+        if x2 <=(L2) && x2 >= (L1);                 % Compruebo que el intercepto con x esté entre -L/2 y L/2
+		NN(p,1) = x2; NN(p,2) = L2;                 % El vector NN va a guardar todos los nodos de la iteración, acá los extrenos
+		NE(ne,1) = x2; NE(ne,2) = L2;               % El vector NE va a guardar todos los nodos externos del sistema
+		p = p+1; ne = ne+1;                         % Actualizo los contadores: p nodos en la fractura i y ne nodos externos en todo el sistema
+        end
+	end
+
+	if F(i,3) <= L1                                 % Verifico si la fractura se extiende por fuera de la frontera izquierda
+        if y1 <=(L2) && y1 >= (L1);
+		NN(p,1) = L1; NN(p,2) = y1;                 % El vector NN va a guardar todos los nodos de la iteración, acá los extrenos
+		NE(ne,1) = L1; NE(ne,2) = y1;               % El vector NE va a guardar todos los nodos externos del sistema
+		p = p+1; ne = ne+1;                         % Actualizo los contadores: p nodos en la fractura i y ne nodos externos en todo el sistema
+        end
+	end
+
+	if F(i,4) >= L2                                 % Verifico si la fractura se extiende por fuera de la frontera derecha
+		if y2 <=(L2) && y2 >= (L1);
+        NN(p,1) = L2; NN(p,2) = y2;                 % El vector NN va a guardar todos los nodos de la iteración, acá los extrenos
+		NE(ne,1) = L2; NE(ne,2) = y2;               % El vector NE va a guardar todos los nodos externos del sistema
+		p = p+1; ne = ne+1;                         % Actualizo los contadores: p nodos en la fractura i y ne nodos externos en todo el sistema
+        end
+    end
+
+    if p>2
+        D = sortrows(NN);
+        r = size(D,1);
+        for k = 1:(r-1)                                                 % Armo cada fila del vector de tramos
+            T(m,1) = D(k,1);                                            % Coordenada x del nodo inicial
+            T(m,2) = D(k,2);                                            % Coordenada y del nodo inicial
+            T(m,3) = D(k+1,1);                                          % Coordenada x del nodo final
+            T(m,4) = D(k+1,2);                                          % Coordenada y del nodo final
+            T(m,5) = (((T(m,1)-T(m,3))^2)+((T(m,2)-T(m,4))^2))^0.5;     % Longitud del tramo
+            T(m,6) = g*((F(i,7)./1000)^3)/(12*u*T(m,5));                % Conductancia del tramo
+            m = m+1;
+        end
+    end
+
+	clear D NN xmin xmax
+
+end
+
+clear F L L1 L2 g k m r u x x1 x2 y y1 y2 ymax ymin
+dfn
+save(['DFN_B_' int2str(dfn)])
+clear NE NI T ne ni p 
+end
+
+%% Salidas:
+
+% T(m,6)
+		% Matriz que contiene la información de los tramos de flujo dentro de la ventana de análisis, incluyendo nodos en la frontera
+		% de la forma:
+		% [xnodo_inicial ynodo_inicial xnodo_final ynodo_final longitud_tramo abertura_tramo conductancia_tramo]
+
+% NE(ne,2)	% Vector que contiene la información de los nodos de frontera (externos), solo coordenadas
+% NI(ni,2)	% Vector que contiexne la información de los nodos internos (sin repetir), solo coordenadas
+% ne, ni,m	% Enteros que representan respectivamente el número de nodos externos, nodos internos y tramos
+% FALTA UN CÓDIGO QUE LE ADIGNE A LOS NODOS EXTERNOS LA CABEZA CORRESPONDIENTE DE ACUERDO A LA FRONTERA ASUMIDA
+
+
+
+
